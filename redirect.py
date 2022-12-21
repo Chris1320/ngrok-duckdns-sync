@@ -30,6 +30,7 @@ def main() -> int:
     try:
         print("[i] Reading configuration file...")
         config = Simple(sys.argv[1])
+        config.load()
 
     except (IndexError, FileNotFoundError):
         print(f"USAGE: {sys.argv[0]} <config path>")
@@ -43,7 +44,7 @@ def main() -> int:
     server = Server(server_addr, Redirect)
 
     try:
-        print(f"Server running on {server_addr[0]}:{server_addr[1]}. Press CTRL+C to exit twice.")
+        print(f"Server running on {server_addr[0]}:{server_addr[1]}. Press CTRL+C to exit.")
         server.serve_forever()
 
     except KeyboardInterrupt:
