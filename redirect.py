@@ -1,11 +1,12 @@
+import sys
+import socket
+
+from typing import Final
 from http.server import SimpleHTTPRequestHandler
 from socketserver import TCPServer
-import socket
-import sys
 
-if len(sys.argv) != 3:
-    print(f"Usage: {sys.argv[0]} <port> <redirect url>")
-    sys.exit()
+from config_handler.simple import Simple
+
 
 class Redirect(SimpleHTTPRequestHandler):
     def do_GET(self):
@@ -18,18 +19,40 @@ class Redirect(SimpleHTTPRequestHandler):
         )
         self.end_headers()
 
+
 class Server(TCPServer):
     def server_bind(self):
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind(self.server_address)
 
-server_addr = ("", int(sys.argv[1]))
-server = Server(server_addr, Redirect)
 
-try:
-    print(f"Server running on port {server_addr[1]}. Press CTRL+C to exit twice.")
-    server.serve_forever()
-except KeyboardInterrupt:
-    pass
+def main() -> int:
+    try:
+        print("[i] Reading configuration file...")
+        config = Simple(sys.argv[1])
 
-server.server_close()
+    except (IndexError, FileNotFoundError):
+        print(f"USAGE: {sys.argv[0]} <config path>")
+        sys.exit(1)
+
+    host = config.get("host")
+    port = int(config.get("port"))
+    redirect_url = config.get("redirect_url")
+
+    server_addr = (host, port)
+    server = Server(server_addr, Redirect)
+
+    try:
+        print(f"Server running on {server_addr[0]}:{server_addr[1]}. Press CTRL+C to exit twice.")
+        server.serve_forever()
+
+    except KeyboardInterrupt:
+        print("\n\n[i] Exiting...")
+
+    finally:
+        server.server_close()
+        return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
