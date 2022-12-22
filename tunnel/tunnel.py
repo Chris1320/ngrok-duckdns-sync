@@ -9,6 +9,7 @@ import httpx
 import colorama
 from pyngrok import conf
 from pyngrok import ngrok
+from pyngrok.exception import PyngrokNgrokError
 from config_handler.simple import Simple
 
 
@@ -39,13 +40,20 @@ def buildRequest(update_url: str, api_key: str, tunnel_url: str, https: bool = T
     return buildURL(f"{update_url}/api/update/redirect_url?key={api_key}&value={tunnel_url}", https)
 
 
-def buildURL(url: str, https: bool = True):
+def buildURL(url: str, https: bool = True, force_schema: bool = False):
     """
     Add schema to URL.
     """
 
     schema = SCHEMAS["https"] if https else SCHEMAS["http"]
-    return f"{schema}{url}" if not any(map(lambda x: url.startswith(SCHEMAS[x]), SCHEMAS)) else url
+    if force_schema:
+        for existing_schema in SCHEMAS.values():
+            if url.startswith(existing_schema):
+                return f"{schema}{url.partition(existing_schema)[2]}"
+
+        return f"{schema}{url}"
+
+    return f"{schema}{url}" if not any(map(lambda schema: url.startswith(schema), SCHEMAS.values())) else url
 
 
 def updateRedirectServer(update_url: str, api_key: str, public_url: str, https: bool = True) -> httpx.Response | int:
@@ -91,6 +99,18 @@ def updateDuckDNSDomain(
         return False
 
 
+def checkServer(url: str) -> int:
+    """
+    Check if the server is up.
+    """
+
+    try:
+        return httpx.get(url).status_code
+
+    except Exception as e:
+        return 1000  # printInfo() considers error codes >= 400 as down.
+
+
 def printInfo(duckdns_domain: str, update_url: str, update_url_https, server_port: int, ngrok_url: Optional[str] = None):
     """
     Show a simple visualization of the redirects.
@@ -103,15 +123,12 @@ def printInfo(duckdns_domain: str, update_url: str, update_url_https, server_por
         "end": colorama.Style.RESET_ALL
     }
 
-    duckdns_url = f"{duckdns_domain}.duckdns.org"
-    duckdns_up = colors["up"] if httpx.get(buildURL(duckdns_url)).status_code == 200 else colors["down"]
+    duckdns_url = buildURL(f"{duckdns_domain}.duckdns.org")
+    duckdns_up = colors["up"] if checkServer(duckdns_url) < 400 else colors["down"]
     duckdns_info = f"{duckdns_up}{duckdns_url}{colors['end']}"
 
-    redirect_url = "{schema}{update_url}".format(
-        schema = SCHEMAS['https'] if update_url_https else SCHEMAS['http'],
-        update_url = update_url
-    )
-    redirect_up = colors["up"] if httpx.get(redirect_url).status_code == 200 else colors["down"]
+    redirect_url = buildURL(update_url, update_url_https)
+    redirect_up = colors["up"] if checkServer(redirect_url) < 400 else colors["down"]
     redirect_info = f"{redirect_up}{redirect_url}{colors['end']}"
 
     ngrok_url = "ngrok tunnel" if ngrok_url is None else ngrok_url
@@ -119,12 +136,12 @@ def printInfo(duckdns_domain: str, update_url: str, update_url_https, server_por
         ngrok_up = colors["down"]
 
     else:
-        ngrok_up = colors["up"] if httpx.get(ngrok_url).status_code == 200 else colors["down"]
+        ngrok_up = colors["up"] if checkServer(buildURL(ngrok_url)) < 400 else colors["down"]
 
     ngrok_info = f"{ngrok_up}{ngrok_url}{colors['end']}"
 
-    server_url = f"http://127.0.0.1:{server_port}"
-    server_up = colors["up"] if httpx.get(server_url).status_code == 200 else colors["down"]
+    server_url = buildURL(f"127.0.0.1:{server_port}", False)
+    server_up = colors["up"] if checkServer(server_url) < 400 else colors["down"]
     server_info = f"{server_up}{server_url}{colors['end']}"
 
     print(
@@ -145,6 +162,7 @@ def main() -> int:
 
     server_port = int(config["server_port"])  # The port of the local server to expose.
     update_url = str(config["update_url"])  # The redirect server.
+    update_port = int(config["update_port"])
     api_key = str(config["api_key"])  # redirect server api key
     redirect_url_https = config.get("update_url_https", True)  # Does the redirect server use HTTPS?
 
@@ -172,7 +190,7 @@ def main() -> int:
         return 4
 
     print()
-    printInfo(duckdns_domain, update_url, redirect_url_https, server_port)
+    printInfo(duckdns_domain, f"{update_url}:{update_port}", redirect_url_https, server_port)
     print()
 
     print("[i] Setting up ngrok...")
@@ -187,23 +205,31 @@ def main() -> int:
         ngrok_config.ngrok_path = ngrok_path
 
     print("[i] Starting ngrok...")
-    tunnel = ngrok.connect(
-        name=ngrok_tunnel_name,
-        addr=server_port,
-        proto=ngrok_protocol,
-        pyngrok_config=ngrok_config
-    )
+    try:
+        tunnel = ngrok.connect(
+            name=ngrok_tunnel_name,
+            addr=server_port,
+            proto=ngrok_protocol,
+            pyngrok_config=ngrok_config
+        )
+
+    except PyngrokNgrokError:
+        print("[CRITICAL] Failed to start ngrok!")
+        print("           Make sure your auth token is correct.")
+        print("           Log in and follow the link below to get your auth token:")
+        print("           https://dashboard.ngrok.com/get-started/your-authtoken")
+        return 5
 
     try:
-        print(f"[i] ngrok is now serving on {tunnel.public_url}.")
+        print(f"[i] ngrok is now serving on {buildURL(tunnel.public_url, True, True)}.")
         print()
-        printInfo(duckdns_domain, update_url, redirect_url_https, server_port, tunnel.public_url)
+        printInfo(duckdns_domain, f"{update_url}:{update_port}", redirect_url_https, server_port, buildURL(tunnel.public_url, True, True))
         print()
         fail_timeout = config.get("redirect_update_fail_retry_timeout", 10)
         success_timeout = config.get("redirect_update_success_timeout", 3600)
         while True:
             print("[i] Updating redirect server...")
-            update_request = updateRedirectServer(update_url, api_key, tunnel.public_url, redirect_url_https)
+            update_request = updateRedirectServer(f"{update_url}:{update_port}", api_key, buildURL(tunnel.public_url, True, True), redirect_url_https)
             update_request_success = update_request.status_code if type(update_request) is httpx.Response else update_request
             if update_request_success != 200:
                 print(f"[E] Failed to update redirect server. Retrying in {fail_timeout} seconds.")
@@ -212,14 +238,28 @@ def main() -> int:
 
             print("[i] Redirect server updated! You can now visit your server on port {port} using the URL {url}. ({update})".format(
                 port = f"{colorama.Fore.LIGHTYELLOW_EX}{server_port}{colorama.Style.RESET_ALL}",
-                url = f"{colorama.Fore.LIGHTYELLOW_EX}{update_url}{colorama.Style.RESET_ALL}",
+                url = f"{colorama.Fore.LIGHTYELLOW_EX}{update_url}:{update_port}{colorama.Style.RESET_ALL}",
                 update = f"update in {success_timeout}s"
             ))
 
             if duckdns_domain is not None:
                 print("[i] Updating DuckDNS domain...")
-                updateDuckDNSDomain(duckdns_domain, duckdns_token, update_url, server_port)
-                time.sleep(success_timeout)
+                if not updateDuckDNSDomain(duckdns_domain, duckdns_token, update_url, update_port):
+                    print(f"[E] Failed to update DuckDNS domain. Retrying in {fail_timeout} seconds.")
+                    time.sleep(fail_timeout)
+                    continue
+
+                else:
+                    print("[i] DuckDNS domain updated! You can now visit your server on port {port} using the URL {url}. ({update})".format(
+                        port = f"{colorama.Fore.LIGHTYELLOW_EX}{server_port}{colorama.Style.RESET_ALL}",
+                        url = f"{colorama.Fore.LIGHTYELLOW_EX}https://{duckdns_domain}.duckdns.org{colorama.Style.RESET_ALL}",
+                        update = f"update in {success_timeout}s"
+                    ))
+
+            print()
+            printInfo(duckdns_domain, f"{update_url}:{update_port}", redirect_url_https, server_port, buildURL(tunnel.public_url, True, True))
+            print()
+            time.sleep(success_timeout)
 
     except KeyboardInterrupt:
         print("[i] Stopping...")
