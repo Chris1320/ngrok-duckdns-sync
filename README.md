@@ -54,3 +54,21 @@ I wanted a way to combine the two and I think I have figured something out. Belo
         - **tunnel_name**: The name of your ngrok tunnel. (What you will see in your ngrok dashboard)
         - **ngrok_auth_token**: Your ngrok authentication token.
 - 5. It should be ready to use now! When you visit `<domain>.duckdns.org`, you will be redirected to your ngrok instance.
+
+## Troubleshooting
+
+### I am getting a `403 Forbidden` error!
+
+If you are getting a `403 Forbidden` error, make sure that you have set the correct API key in the `config.conf` file.
+
+### I am getting a `502 Bad Gateway` error!
+
+If you are getting a `502 Bad Gateway` error, make sure that you have set the correct path of the Flask project in the PythonAnywhere web app settings.
+
+### I am getting a `503 Service Unavailable` error!
+
+If you are getting a `503 Service Unavailable` error, make sure that `tunnel.py` is running and has successfully updated the redirection server for the ngrok instance address.
+
+### I cannot connect to the redirection server!
+
+If you use **[PythonAnywhere](https://pythonanywhere.com/)** as your redirection server, try to change the port of the web app to `80`. If you are using a **different redirection server**, make sure that the redirection server is running and that you have set the correct port in the `config.conf` file.
