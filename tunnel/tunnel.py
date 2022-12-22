@@ -262,7 +262,10 @@ def main() -> int:
             time.sleep(success_timeout)
 
     except KeyboardInterrupt:
-        print("[i] Stopping...")
+        print("[i] Updating redirect server...")
+        # Set the redirect URL to None to disable the redirect.
+        updateRedirectServer(f"{update_url}:{update_port}", api_key, '', redirect_url_https)
+        print("[i] Stopping ngrok instance...")
         ngrok.disconnect(tunnel.public_url)
         return 0
 

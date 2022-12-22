@@ -108,7 +108,7 @@ def update(key: str):
         if new_value is None:
             abort(400)
 
-        redirect_url = new_value
+        redirect_url = new_value if new_value != '' else None
         print(f"[i] Updated redirect URL to `{redirect_url}`.")
         return "OK"
 

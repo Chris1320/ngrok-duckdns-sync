@@ -13,7 +13,7 @@ I wanted a way to combine the two and I think I have figured something out. Belo
 - 1. Getting your DuckDNS domain name
     1. Register for a free [DuckDNS](https://duckdns.org/) account.
     2. Register a domain name.
-    3. Replace the `duckdns_domain` and `duckdns_token` in `redirector/config.conf` with your own DuckDNS domain name and token, respectively.
+    3. Replace the `duckdns_domain` and `duckdns_token` in `tunnel/config.conf` with your own DuckDNS domain name and token, respectively.
 - 2. Setting up ngrok
     1. Register for a free [ngrok](https://ngrok.com/signup) account.
     2. Copy your [auth token](https://dashboard.ngrok.com/get-started/your-authtoken) and replace the value of `ngrok_auth_token` with your auth token.
@@ -33,7 +33,7 @@ I wanted a way to combine the two and I think I have figured something out. Belo
             main("<PATH_TO_CONFIG_FILE>")
             ```
 
-    6. Save the file and restart the server.
+    6. Save the file and reload the server.
     7. Open the server logs (located in `/var/log/<username>.pythonanywhere.com.server.log`) and get your redirector API key. Look for something like this:
 
         ```
@@ -72,3 +72,7 @@ If you are getting a `503 Service Unavailable` error, make sure that `tunnel.py`
 ### I cannot connect to the redirection server!
 
 If you use **[PythonAnywhere](https://pythonanywhere.com/)** as your redirection server, try to change the port of the web app to `80`. If you are using a **different redirection server**, make sure that the redirection server is running and that you have set the correct port in the `config.conf` file. Otherwise, check the output of `tunnel.py` for any errors.
+
+### I cannot see any API key in the server logs of the redirection server!
+
+The API key is shown on the logs only once. If you want to see the API key again, you can open the `config.conf` file. It will be the value of `api_key`. If you want to reset the API key, remove the key/value pair in the configuration file. You can also set your own API key, but it is not advisable.
