@@ -142,6 +142,7 @@ def main():
         print("[i] New API key has been set. You'll only see this once:")
         print(api_key)
         print()
+        config.save()
 
     print(f"Server running on {host}:{port}. Press CTRL+C to exit.")
     app.run(host, port)
