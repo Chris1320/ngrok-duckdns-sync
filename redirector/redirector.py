@@ -1,4 +1,6 @@
+import os
 import sys
+import hashlib
 from typing import Final
 
 from flask import Flask
@@ -25,7 +27,7 @@ def buildURL(url: str, https: bool = True):
     """
 
     schema = SCHEMAS["https"] if https else SCHEMAS["http"]
-    return f"{schema}{url}" if "://" not in url else schema
+    return f"{schema}{url}" if not any(map(lambda x: url.startswith(SCHEMAS[x]), SCHEMAS)) else url
 
 
 @app.errorhandler(404)
@@ -133,7 +135,13 @@ def main():
 
     host = config.get("host")
     port = int(config.get("port"))
-    api_key = config.get("api_key")
+    api_key = config.get("api_key", None)
+    if api_key is None:
+        api_key = hashlib.sha256(os.urandom(32)).hexdigest()
+        config["api_key"] = api_key
+        print("[i] New API key has been set. You'll only see this once:")
+        print(api_key)
+        print()
 
     print(f"Server running on {host}:{port}. Press CTRL+C to exit.")
     app.run(host, port)
