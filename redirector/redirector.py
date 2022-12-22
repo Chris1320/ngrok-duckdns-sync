@@ -8,7 +8,6 @@ from flask import abort
 from flask import request
 from flask import url_for
 from flask import redirect
-from waitress import serve
 from config_handler.simple import Simple
 
 
@@ -145,8 +144,10 @@ def main():
         print()
         config.save()
 
-    print(f"Server running on {host}:{port}. Press CTRL+C to exit.")
-    serve(app, host=host, port=port)
+    if config.get("serve", False):
+        print(f"[i] Starting server on {host}:{port}. Press CTRL+C to exit.")
+        from waitress import serve
+        serve(app, host=host, port=port)
 
 
 if __name__ == "__main__":
