@@ -71,4 +71,4 @@ If you are getting a `503 Service Unavailable` error, make sure that `tunnel.py`
 
 ### I cannot connect to the redirection server!
 
-If you use **[PythonAnywhere](https://pythonanywhere.com/)** as your redirection server, try to change the port of the web app to `80`. If you are using a **different redirection server**, make sure that the redirection server is running and that you have set the correct port in the `config.conf` file.
+If you use **[PythonAnywhere](https://pythonanywhere.com/)** as your redirection server, try to change the port of the web app to `80`. If you are using a **different redirection server**, make sure that the redirection server is running and that you have set the correct port in the `config.conf` file. Otherwise, check the output of `tunnel.py` for any errors.
