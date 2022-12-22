@@ -6,19 +6,51 @@ I wanted a way to combine the two and I think I have figured something out. Belo
 
 ## Prequisites
 
-- Python3
-- Ability to use `sudo` or similar
+- Python 3
 
 ## Installation
 
-- DuckDNS
-  - Get an account at [duckdns.org](https://duckdns.org/).
-  - Register a domain name
-  - Keep note of the token
-- Ngrok
-  - Get an accout at [ngrok.com](https://ngrok.com/signup)
-  - Copy the authtoken
-  - Download the binary from [ngrok.com](https://ngrok.com/download).  
-  - Extract the binary and run `ngrok config authtoken <token>`
-- Python3
-  - Install `requests`
+- 1. Getting your DuckDNS domain name
+    1. Register for a free [DuckDNS](https://duckdns.org/) account.
+    2. Register a domain name.
+    3. Replace the `duckdns_domain` and `duckdns_token` in `redirector/config.conf` with your own DuckDNS domain name and token, respectively.
+- 2. Setting up ngrok
+    1. Register for a free [ngrok](https://ngrok.com/signup) account.
+    2. Copy your [auth token](https://dashboard.ngrok.com/get-started/your-authtoken) and replace the value of `ngrok_auth_token` with your auth token.
+- 3. Setting up your redirection server (Using [PythonAnywhere](https://pythonanywhere.com/))
+    1. Register for a free [PythonAnywhere](https://pythonanywhere.com/) account.
+    2. Add a new web app.
+        - Choose **Flask** as the Python Web Framework.
+        - Select the latest supported Python version (as of this writing, it is **Python 3.10**)
+        - Set the path of the Flask project. (I will set it to `/home/<username>/redirector/redirector.py`)
+    3. Create a new directory `/home/<username>/redirector/`.
+    4. Upload the contents of `redirector/` in your machine into the new web app's directory.
+    5. Edit the WSGI Python file. (Usually located in `/var/www/<username>_pythonanywhere_com_wsgi.py`)
+        - Before the line with `from redirector import app as application  # noqa`, add the following code:
+
+            ```python
+            from redirector import main
+            main("<PATH_TO_CONFIG_FILE>")
+            ```
+
+    6. Save the file and restart the server.
+    7. Open the server logs (located in `/var/log/<username>.pythonanywhere.com.server.log`) and get your redirector API key. Look for something like this:
+
+        ```
+        [i] New API key has been set. You'll only see this once:
+        6f024c51ca5d0b6568919e134353aaf1398ff090c92f6173f5ce0315fa266b93
+        ```
+
+- 4. Setting up the tunnel client.
+    1. Fill up the `config.conf` file of the `tunnel.py` script.
+        - **server_port**: The port of the local server you want to expose.
+        - **protocol**: The protocol to pass to ngrok (i.e., `http` or `tcp`)
+        - **update_url**: The URL of the redirection server.
+        - **update_port**: The port of the redirection server.
+        - **update_url_https**: Set this to true to use *https* instead of *http*.
+        - **api_key**: The API key you saw from the redirection server's server logs from *step 3.7*.
+        - **duckdns_domain**: The name of your DuckDNS subdomain.
+        - **duckdns_token**: The token of your DuckDNS account.
+        - **tunnel_name**: The name of your ngrok tunnel. (What you will see in your ngrok dashboard)
+        - **ngrok_auth_token**: Your ngrok authentication token.
+- 5. It should be ready to use now! When you visit `<domain>.duckdns.org`, you will be redirected to your ngrok instance.

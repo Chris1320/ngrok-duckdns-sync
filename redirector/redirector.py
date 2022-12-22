@@ -2,6 +2,7 @@ import os
 import sys
 import hashlib
 from typing import Final
+from typing import Optional
 
 from flask import Flask
 from flask import abort
@@ -122,11 +123,11 @@ def update(key: str):
     abort(400)
 
 
-def main():
+def main(config_path: Optional[str] = None):
     global api_key
     try:
         print("[i] Reading configuration file...")
-        config = Simple(sys.argv[1])
+        config = Simple(sys.argv[1] if config_path is None else config_path)
         config.load()
 
     except (IndexError, FileNotFoundError):
